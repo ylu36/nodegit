@@ -1,7 +1,6 @@
 'use strict';
 var fs = require('fs');
 var git = require('nodegit');
-var path = require('path');
 const {exec} = require('child_process');
 var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
 
@@ -15,12 +14,12 @@ function readDir(dir) {
         console.log(file);
     }); 
 }
-function addByDir(index, dir) {
+function addByDir(dir) {
     var list = fs.readdirSync(dir);
     list.forEach(function(file) {
         if(file != '.git') {
             console.log(file);
-            index.addByPath(file);
+            paths.push(file);
         }
     }); 
 }
@@ -57,13 +56,23 @@ function downloadAndUnzipFile() {
 }
 
 function process_git() {
-    var repo, index, oid, remote;
+    var repo, index, oid, remote, paths = [];
     isBare = fs.existsSync(`${repofolder}/.git`) == false? 0:1;
     console.log(isBare);
+        var list = fs.readdirSync(repofolder);
+        list.forEach(function(file) {
+            if(file != '.git') {
+                console.log(file);
+                paths.push(file);
+            }
+        }); 
+        console.log("paths is "+paths)
+        
     git.Repository.init(repofolder, isBare)
     .then((repoResult) => repo = repoResult)
     .then(() => repo.refreshIndex())
     .then((indexResult) => (index = indexResult))
+    .then(() => index.addAll(paths))
     // .then(function() {
     //     var list = fs.readdirSync(repofolder);
     //    // list.forEach(function(file) {
