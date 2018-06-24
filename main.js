@@ -3,7 +3,7 @@ var fs = require('fs');
 var git = require('nodegit');
 const {exec} = require('child_process');
 var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
-
+var targetUrl = "https://github.com/ylu36/push_example.git";
 var isBare = 0; // lets create a .git subfolder
 var repofolder;
 var accountname = "ylu36";
@@ -57,32 +57,21 @@ function downloadAndUnzipFile() {
 
 function process_git() {
     var repo, index, oid, remote, paths = [];
+    var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", 123456789, 60);
     isBare = fs.existsSync(`${repofolder}/.git`) == false? 0:1;
-    console.log(isBare);
+    if(!isBare) console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
         var list = fs.readdirSync(repofolder);
         list.forEach(function(file) {
             if(file != '.git') {
-                console.log(file);
                 paths.push(file);
             }
         }); 
-        console.log("paths is "+paths)
         
     git.Repository.init(repofolder, isBare)
     .then((repoResult) => repo = repoResult)
     .then(() => repo.refreshIndex())
     .then((indexResult) => (index = indexResult))
     .then(() => index.addAll(paths))
-    // .then(function() {
-    //     var list = fs.readdirSync(repofolder);
-    //    // list.forEach(function(file) {
-    //     // if(file != '__MACOSX' && file != '.git') {
-    //     //     console.log(file);
-    //         index.addByPath('');
-    //   //  }
-    // //}); 
-    // }) // TODO: change here
-    //.then((index) => index.addByPath(path.join('./', 'names.txt')))
     .then(() => index.write())
     .then(() => index.writeTree())
     // .then(function(oidResult) {
@@ -91,20 +80,14 @@ function process_git() {
     // })
     //.then((head) => repo.getCommit(head))
     .then(function(oid) {
-        var author = git.Signature.create("ylu36",
-          "ylu36@ncsu.edu", 123456789, 60);
-        var committer = git.Signature.create("ylu36",
-          "ylu36@ncsu.edu", 987654321, 90);
-      
-        return repo.createCommit("HEAD", author, committer, "message", oid, []);
+        return repo.createCommit("HEAD", signature, signature, "initial commit", oid, []);
     })
     .then(function(commitId) {
     console.log("New Commit: ", commitId);
     })
       // Add a new remote
     .then(function() {
-        return git.Remote.create(repo, "origin",
-        "git@github.com:ylu36/push-example.git")
+        return git.Remote.create(repo, "origin", targetUrl)
         .then(function(remoteResult) {
         remote = remoteResult;
     
@@ -113,9 +96,7 @@ function process_git() {
             ["refs/heads/master:refs/heads/master"],
             {
                 callbacks: {
-                    credentials: (url, userName) => Cred.userpassPlaintextNew(userName, password)
-                      .catch(ex => console.log(`Whoops ${username} won't work, falling back to 'git'`))
-                      .then(() => Cred.userpassPlaintextNew('git', password))
+                    credentials: () => git.Cred.userpassPlaintextNew(accountname, password)
                 }
             }
         );
