@@ -7,5 +7,6 @@ node@6.11.3 <br>
 npm@5.6.0 
 
 ### current stage:
-* can clone a remote zip (NO `.git` presence) to GitHub repo (need to create empty GitHub repo first) 
-* now need to clone a remote zip with `.git` to GitHub repo
+* (Prereq: need to create empty GitHub repo first) 
+* can clone a remote zip (NO `.git` presence) to GitHub repo 
+* can clone a remote zip with `.git` to GitHub repo

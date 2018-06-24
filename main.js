@@ -27,7 +27,6 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
             paths.push(file);
         }
     }); 
-        
     git.Repository.init(repofolder, 0)
     .then((repoResult) => repo = repoResult)
     .then(() => repo.refreshIndex())
@@ -68,9 +67,44 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
     }); 
 }
 
+function createRepoFromGit(repofolder, accountname, password, signature, targetUrl) {
+    var repo, index, oid, remote, paths = [];
+    console.log(`${repofolder} is a git repository. Staging the repo...`);
+    var list = fs.readdirSync(repofolder);
+    list.forEach(function(file) {
+        if(file != '.git') {
+            paths.push(file);
+        }
+    }); 
+    
+    git.Repository.open(repofolder)
+    .then((repoResult) => repo = repoResult)
+    // Add a new remote
+    .then(function() {
+        git.Remote.setUrl(repo, "origin", targetUrl);
+        return git.Remote.lookup(repo, "origin")
+        .then(function(remoteResult) {
+        remote = remoteResult;
+    
+       // Create the push object for this remote
+        return remote.push(
+            ["refs/heads/master:refs/heads/master"],
+            {
+                callbacks: {
+                    credentials: () => git.Cred.userpassPlaintextNew(accountname, password)
+                }
+            }
+        );
+        });
+    })
+    .done(function() {
+        console.log("Done!");
+    }); 
+}
+
 function downloadAndUnzipFile() {
     var repofolder;
-    var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
+    var sourceUrl = 'http://9.37.137.241:8000/fetch.zip';
     var targetUrl = "https://github.com/ylu36/push_example.git";
 
     function unzip(zipName) {
@@ -110,10 +144,16 @@ function process_git(repofolder, sourceUrl, targetUrl) {
     var password = "Cozyrat0326";
     var timestamp = Math.round(Date.now()/1000);
     var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", timestamp, 60);
-    isBare = fs.existsSync(`${repofolder}/.git`) == false? 0:1;
+    isBare = fs.existsSync(`${repofolder}/.git`);
     if(!isBare) {
         createRepo(repofolder, accountname, password, signature, targetUrl);
     }
+    else {
+        createRepoFromGit(repofolder, accountname, password, signature, targetUrl);
+    }
+
 }
+
+    // TODO: set PARENT if .git present
 
 downloadAndUnzipFile();
