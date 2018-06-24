@@ -57,7 +57,8 @@ function downloadAndUnzipFile() {
 
 function process_git() {
     var repo, index, oid, remote, paths = [];
-    var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", 123456789, 60);
+    let timestamp = Math.round(Date.now()/1000);
+    var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", timestamp, 60);
     isBare = fs.existsSync(`${repofolder}/.git`) == false? 0:1;
     if(!isBare) console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
         var list = fs.readdirSync(repofolder);
