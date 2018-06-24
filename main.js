@@ -92,9 +92,9 @@ function process_git() {
     //.then((head) => repo.getCommit(head))
     .then(function(oid) {
         var author = git.Signature.create("ylu36",
-          "schacon@gmail.com", 123456789, 60);
+          "ylu36@ncsu.edu", 123456789, 60);
         var committer = git.Signature.create("ylu36",
-          "scott@github.com", 987654321, 90);
+          "ylu36@ncsu.edu", 987654321, 90);
       
         return repo.createCommit("HEAD", author, committer, "message", oid, []);
     })
