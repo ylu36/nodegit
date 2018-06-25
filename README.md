@@ -1,10 +1,11 @@
 ### To Install:
-<li>brew install libgcrypt </li>
-<li>npm install </li>
+- brew install libgcrypt (necessary for installing `nodegit`)
+- npm install 
 
 ### Node and NPM version
 node@6.11.3 <br>
-npm@5.6.0 
+npm@5.6.0 <br>
+(note: later versions don't work)
 
 ### current stage:
 * (Prereq: need to create empty GitHub repo first) 

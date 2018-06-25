@@ -3,23 +3,8 @@ var fs = require('fs');
 var git = require('nodegit');
 const {exec} = require('child_process');
 
-function readDir(dir) {
-    var list = fs.readdirSync(dir);
-    list.forEach(function(file) {
-        console.log(file);
-    }); 
-}
-function addByDir(dir) {
-    var list = fs.readdirSync(dir);
-    list.forEach(function(file) {
-        if(file != '.git') {
-            console.log(file);
-            paths.push(file);
-        }
-    }); 
-}
 function createRepo(repofolder, accountname, password, signature, targetUrl) {
-    var repo, index, oid, remote, paths = [];
+    var repo, index, remote, paths = [];
     console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
     var list = fs.readdirSync(repofolder);
     list.forEach(function(file) {
@@ -34,11 +19,6 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
     .then(() => index.addAll(paths))
     .then(() => index.write())
     .then(() => index.writeTree())
-    // .then(function(oidResult) {
-    //     oid = oidResult;
-    //     return git.Reference.nameToId(repo, "HEAD");
-    // })
-    //.then((head) => repo.getCommit(head))
     .then(function(oid) {
         return repo.createCommit("HEAD", signature, signature, "initial commit", oid, []);
     })
@@ -50,8 +30,7 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
         return git.Remote.create(repo, "origin", targetUrl)
         .then(function(remoteResult) {
         remote = remoteResult;
-    
-        // Create the push object for this remote
+        console.log(`remote set to ${targetUrl}`);
         return remote.push(
             ["refs/heads/master:refs/heads/master"],
             {
@@ -67,26 +46,19 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
     }); 
 }
 
-function createRepoFromGit(repofolder, accountname, password, signature, targetUrl) {
-    var repo, index, oid, remote, paths = [];
+function createRepoFromGit(repofolder, accountname, password, targetUrl) {
+    var repo, remote;
     console.log(`${repofolder} is a git repository. Staging the repo...`);
-    var list = fs.readdirSync(repofolder);
-    list.forEach(function(file) {
-        if(file != '.git') {
-            paths.push(file);
-        }
-    }); 
     
     git.Repository.open(repofolder)
     .then((repoResult) => repo = repoResult)
     // Add a new remote
     .then(function() {
         git.Remote.setUrl(repo, "origin", targetUrl);
+        console.log(`remote set to ${targetUrl}`);
         return git.Remote.lookup(repo, "origin")
         .then(function(remoteResult) {
         remote = remoteResult;
-    
-       // Create the push object for this remote
         return remote.push(
             ["refs/heads/master:refs/heads/master"],
             {
@@ -102,10 +74,8 @@ function createRepoFromGit(repofolder, accountname, password, signature, targetU
     }); 
 }
 
-function downloadAndUnzipFile() {
+function downloadAndUnzipFile(sourceUrl, targetUrl) {
     var repofolder;
-    var sourceUrl = 'http://9.37.137.241:8000/fetch.zip';
-    var targetUrl = "https://github.com/ylu36/push_example.git";
 
     function unzip(zipName) {
         var cmd = `unzip ${zipName} -d ./`;
@@ -116,14 +86,14 @@ function downloadAndUnzipFile() {
               return;
             }
             console.log(`unzipped file ${zipName} to ${repofolder}`);
-            process_git(repofolder, sourceUrl, targetUrl);
+            process_git(repofolder, targetUrl);
         });
         exec(`rm -rf ${zipName} __MACOSX`);
     }
     function download(sourceUrl) {
         var zipName;
-        //exec('rm *.zip.*');
-        exec(`wget ${sourceUrl} && (ls | grep *.zip)`, (err, stdout, stderr) => {
+        var cmd = `wget ${sourceUrl} && find . -iname \*.zip`;
+        exec(cmd, (err, stdout, stderr) => {
             if (err) {
               console.error(`exec error: ${err}`);
               return;
@@ -138,7 +108,7 @@ function downloadAndUnzipFile() {
     download(sourceUrl);
 }
 
-function process_git(repofolder, sourceUrl, targetUrl) {
+function process_git(repofolder, targetUrl) {
     var isBare = 0; // 0 if no .git presence
     var accountname = "ylu36";
     var password = "Cozyrat0326";
@@ -149,11 +119,15 @@ function process_git(repofolder, sourceUrl, targetUrl) {
         createRepo(repofolder, accountname, password, signature, targetUrl);
     }
     else {
-        createRepoFromGit(repofolder, accountname, password, signature, targetUrl);
+        createRepoFromGit(repofolder, accountname, password, targetUrl);
     }
 
 }
 
-    // TODO: set PARENT if .git present
+function init() {
+    var sourceUrl = 'http://9.37.137.241:8000/fetch.zip';
+    var targetUrl = "https://github.com/ylu36/push_example.git";
+    downloadAndUnzipFile(sourceUrl, targetUrl);
+}
 
-downloadAndUnzipFile();
+init();
