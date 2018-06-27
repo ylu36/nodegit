@@ -4,6 +4,13 @@ var git = require('nodegit');
 const {exec} = require('child_process');
 var express = require('express'),
     router = express.Router();
+
+    var app = express();
+var cookieParser   = require('cookie-parser');
+var bodyParser = require('body-parser');
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true })); 
+app.use(cookieParser())
 function createRepo(repofolder, accountname, password, signature, targetUrl) {
     var repo, index, remote, paths = [];
     console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
@@ -124,16 +131,27 @@ function process_git(repofolder, targetUrl) {
     }
 
 }
-
+// var body = {
+//     source: params.repoUrlWithAuth || params.sourceRepoUrl,
+//     target: targetUrl,
+//     target_token: git.selected.token,
+//     cloneType: params.cloneType,
+//     git_type: git.selected.type
+// };
 function init() {
     var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
     var targetUrl = "https://github.com/ylu36/push_example.git";
     downloadAndUnzipFile(sourceUrl, targetUrl);
 }
 
-router.get("/", function(req, res) {
-    res.send("in the clone route");
-    init();
+router.post("/", function(req, res) {
+    console.log(req);
+    res.send("again in the clone route");
+    //init();
 });
 
+router.get("/index", function(req, res) {
+    console.log(req.params)
+    res.send("in the clone route");
+});
 module.exports = router;
