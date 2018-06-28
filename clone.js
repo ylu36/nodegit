@@ -2,16 +2,9 @@
 var fs = require('fs');
 var git = require('nodegit');
 const {exec} = require('child_process');
-var express = require('express'),
-    router = express.Router();
-
-    var app = express();
-var cookieParser   = require('cookie-parser');
-var bodyParser = require('body-parser');
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); 
-app.use(cookieParser())
-function createRepo(repofolder, accountname, password, signature, targetUrl) {
+var express = require('express');
+var router = express.Router();
+function createRepo(repofolder, signature, targetUrl, target_token) {
     var repo, index, remote, paths = [];
     console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
     var list = fs.readdirSync(repofolder);
@@ -43,7 +36,7 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
             ["refs/heads/master:refs/heads/master"],
             {
                 callbacks: {
-                    credentials: () => git.Cred.userpassPlaintextNew(accountname, password)
+                    credentials: () => git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")
                 }
             }
         );
@@ -54,7 +47,7 @@ function createRepo(repofolder, accountname, password, signature, targetUrl) {
     }); 
 }
 
-function createRepoFromGit(repofolder, accountname, password, targetUrl) {
+function createRepoFromGit(repofolder, targetUrl, target_token) {
     var repo, remote;
     console.log(`${repofolder} is a git repository. Staging the repo...`);
     
@@ -71,7 +64,7 @@ function createRepoFromGit(repofolder, accountname, password, targetUrl) {
             ["refs/heads/master:refs/heads/master"],
             {
                 callbacks: {
-                    credentials: () => git.Cred.userpassPlaintextNew(accountname, password)
+                    credentials: () => git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")
                 }
             }
         );
@@ -82,7 +75,7 @@ function createRepoFromGit(repofolder, accountname, password, targetUrl) {
     }); 
 }
 
-function downloadAndUnzipFile(sourceUrl, targetUrl) {
+function downloadAndUnzipFile(sourceUrl, targetUrl, target_token) {
     var repofolder;
 
     function unzip(zipName) {
@@ -94,7 +87,7 @@ function downloadAndUnzipFile(sourceUrl, targetUrl) {
               return;
             }
             console.log(`unzipped file ${zipName} to ${repofolder}`);
-            process_git(repofolder, targetUrl);
+            process_git(repofolder, targetUrl, target_token);
         });
         exec(`rm -rf ${zipName} __MACOSX`);
     }
@@ -116,18 +109,16 @@ function downloadAndUnzipFile(sourceUrl, targetUrl) {
     download(sourceUrl);
 }
 
-function process_git(repofolder, targetUrl) {
+function process_git(repofolder, targetUrl, target_token) {
     var isBare = 0; // 0 if no .git presence
-    var accountname = "ylu36";
-    var password = "Cozyrat0326";
     var timestamp = Math.round(Date.now()/1000);
     var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", timestamp, 60);
     isBare = fs.existsSync(`${repofolder}/.git`);
     if(!isBare) {
-        createRepo(repofolder, accountname, password, signature, targetUrl);
+        createRepo(repofolder, signature, targetUrl, target_token);
     }
     else {
-        createRepoFromGit(repofolder, accountname, password, targetUrl);
+        createRepoFromGit(repofolder, targetUrl, target_token);
     }
 
 }
@@ -138,20 +129,31 @@ function process_git(repofolder, targetUrl) {
 //     cloneType: params.cloneType,
 //     git_type: git.selected.type
 // };
-function init() {
+function init(params) {
+    
+    var source = params.source;
+    var target = params.target;
+    var target_token = params.target_token;
     var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
-    var targetUrl = "https://github.com/ylu36/push_example.git";
-    downloadAndUnzipFile(sourceUrl, targetUrl);
+    var targetUrl = `https://github.com/ylu36/push_example.git`;
+    var cloneType = params.cloneType;
+    var git_type = params.git_type;
+    // console.log(source)
+    //if(cloneType == 'zip')
+    downloadAndUnzipFile(sourceUrl, targetUrl, target_token);
 }
 
-router.post("/", function(req, res) {
-    console.log(req);
+router.post("/clone", function(req, res) {
+    console.log(req.body);
     res.send("again in the clone route");
-    //init();
+    init(req.body);
 });
 
-router.get("/index", function(req, res) {
-    console.log(req.params)
-    res.send("in the clone route");
+router.get("/status", function(req, res) {
+    res.send({
+        "message": "Connected to local helper",
+        "status": "PASS",
+        "details": "The GitHub helper app is running"
+    });
 });
 module.exports = router;
