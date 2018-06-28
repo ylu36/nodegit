@@ -4,7 +4,7 @@ var git = require('nodegit');
 const {exec} = require('child_process');
 var express = require('express');
 var router = express.Router();
-function createRepo(repofolder, signature, targetUrl, target_token) {
+function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     var repo, index, remote, paths = [];
     console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
     var list = fs.readdirSync(repofolder);
@@ -36,18 +36,20 @@ function createRepo(repofolder, signature, targetUrl, target_token) {
             ["refs/heads/master:refs/heads/master"],
             {
                 callbacks: {
-                    credentials: () => git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")
-                }
+                credentials:() => (git_type.toLowerCase() == 'bitbucket') ?
+                                            git.Cred.userpassPlaintextNew("x-token-auth", target_token):
+                                        (git_type.toLowerCase() == 'gitlab') ?
+                                            git.Cred.userpassPlaintextNew("oauth2", target_token): git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")          
             }
-        );
         });
     })
     .done(function() {
         console.log("Done!");
     }); 
+});
 }
 
-function createRepoFromGit(repofolder, targetUrl, target_token) {
+function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
     var repo, remote;
     console.log(`${repofolder} is a git repository. Staging the repo...`);
     
@@ -64,18 +66,22 @@ function createRepoFromGit(repofolder, targetUrl, target_token) {
             ["refs/heads/master:refs/heads/master"],
             {
                 callbacks: {
-                    credentials: () => git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")
-                }
+                credentials:() => (git_type.toLowerCase() == 'bitbucket') ?
+                                            git.Cred.userpassPlaintextNew("x-token-auth", target_token):
+                                        (git_type.toLowerCase() == 'gitlab') ?
+                                            git.Cred.userpassPlaintextNew("oauth2", target_token): git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic")             
             }
-        );
         });
     })
     .done(function() {
         console.log("Done!");
     }); 
+});
 }
+function pushRemote(remote, target_token) {
 
-function downloadAndUnzipFile(sourceUrl, targetUrl, target_token) {
+}
+function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
     var repofolder;
 
     function unzip(zipName) {
@@ -87,7 +93,7 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token) {
               return;
             }
             console.log(`unzipped file ${zipName} to ${repofolder}`);
-            process_git(repofolder, targetUrl, target_token);
+            process_git(repofolder, targetUrl, target_token, git_type);
         });
         exec(`rm -rf ${zipName} __MACOSX`);
     }
@@ -109,16 +115,16 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token) {
     download(sourceUrl);
 }
 
-function process_git(repofolder, targetUrl, target_token) {
+function process_git(repofolder, targetUrl, target_token, git_type) {
     var isBare = 0; // 0 if no .git presence
     var timestamp = Math.round(Date.now()/1000);
     var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", timestamp, 60);
     isBare = fs.existsSync(`${repofolder}/.git`);
     if(!isBare) {
-        createRepo(repofolder, signature, targetUrl, target_token);
+        createRepo(repofolder, signature, targetUrl, target_token, git_type);
     }
     else {
-        createRepoFromGit(repofolder, targetUrl, target_token);
+        createRepoFromGit(repofolder, targetUrl, target_token, git_type);
     }
 
 }
@@ -134,13 +140,14 @@ function init(params) {
     var source = params.source;
     var target = params.target;
     var target_token = params.target_token;
-    var sourceUrl = 'http://9.37.137.241:8000/FDTake-master.zip';
-    var targetUrl = `https://github.com/ylu36/push_example.git`;
+    var sourceUrl = 'http://9.37.137.241:8000/fetch.zip';
+    var targetUrl = `http://github.com/ylu36/push_example.git`;
     var cloneType = params.cloneType;
     var git_type = params.git_type;
-    // console.log(source)
+    git_type = 'github'
+     console.log(source + '\t' + target)
     //if(cloneType == 'zip')
-    downloadAndUnzipFile(sourceUrl, targetUrl, target_token);
+    downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);
 }
 
 router.post("/clone", function(req, res) {
