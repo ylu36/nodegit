@@ -45,6 +45,7 @@ function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     })
     .done(function() {
         console.log("Done!");
+        exec(`rm -rf ${repofolder} __MACOSX`);
     }); 
 });
 }
@@ -75,14 +76,14 @@ function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
     })
     .done(function() {
         console.log("Done!");
+        exec(`rm -rf ${repofolder} __MACOSX`);
     }); 
+    
 });
 }
-function pushRemote(remote, target_token) {
 
-}
 function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
-    var repofolder;
+    var repofolder, zipName;
 
     function unzip(zipName) {
         var cmd = `unzip ${zipName} -d ./`;
@@ -94,11 +95,11 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
             }
             console.log(`unzipped file ${zipName} to ${repofolder}`);
             process_git(repofolder, targetUrl, target_token, git_type);
-        });
-        exec(`rm -rf ${zipName} __MACOSX`);
+            }
+        );
+        exec(`rm ${zipName}`);
     }
     function download(sourceUrl) {
-        var zipName;
         var cmd = `wget ${sourceUrl} && find . -iname \*.zip`;
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
@@ -116,9 +117,15 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
 }
 
 function process_git(repofolder, targetUrl, target_token, git_type) {
+    function cleanCallback() {
+        exec(`rm -rf __MACOSX ${repofolder}`);
+        console.log("cleaning done")
+    }
     var isBare = 0; // 0 if no .git presence
     var timestamp = Math.round(Date.now()/1000);
-    var signature = git.Signature.create("ylu36", "ylu36@ncsu.edu", timestamp, 60);
+    // TODO: reference "var accountName = gitUtils.getAccountName(params.sourceRepoUrl, git.selected.type)"
+    var accountName = "Yuanchen.Lu@ibm.com";
+    var signature = git.Signature.create(accountName, accountName, timestamp, 60);
     isBare = fs.existsSync(`${repofolder}/.git`);
     if(!isBare) {
         createRepo(repofolder, signature, targetUrl, target_token, git_type);
@@ -126,7 +133,7 @@ function process_git(repofolder, targetUrl, target_token, git_type) {
     else {
         createRepoFromGit(repofolder, targetUrl, target_token, git_type);
     }
-
+    
 }
 // var body = {
 //     source: params.repoUrlWithAuth || params.sourceRepoUrl,
@@ -140,11 +147,11 @@ function init(params) {
     var source = params.source;
     var target = params.target;
     var target_token = params.target_token;
-    var sourceUrl = 'http://9.37.137.241:8000/fetch.zip';
-    var targetUrl = `http://github.com/ylu36/push_example.git`;
+    var sourceUrl = 'https://github-media-downloads.s3.amazonaws.com/GitHub-Logos.zip';
+    var targetUrl = `https://github.ibm.com/Yuanchen-Lu/push.git`;
     var cloneType = params.cloneType;
     var git_type = params.git_type;
-    git_type = 'github'
+    git_type = "github"
      console.log(source + '\t' + target)
     //if(cloneType == 'zip')
     downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);

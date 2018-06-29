@@ -14,3 +14,4 @@
 * `main.js` starts a local server at port 3000. `POST` to API endpoint `localhost:3000/clone` invokes the clone functionality. `GET` to API endpoint `localhost:3000/status` returns the status of this helper app. 
 * can handle cloning to GitHub, GitLab, GitHub Enterprise, GitLab Enterprise
 * can set remote and stage changes to BitBucket, but causes infinite loop while pushing. Manual push works fine
+* can clean workspace by removing tmp files
