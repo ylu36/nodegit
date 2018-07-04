@@ -67,7 +67,11 @@ function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
             }
         });
     })
-    .done(function() {
+    .catch(function(err) {
+        console.log(err);
+        return;
+    })
+    .then(function() {
         console.log("Done!");
         exec(`rm -rf ${repofolder} __MACOSX`);
     }); 
@@ -98,10 +102,14 @@ function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
             }
         });
     })
-    .done(function() {
+    .catch(function(err) {
+        console.log(err);
+        return;
+      })
+    .then(function() {
         console.log("Done!");
         exec(`rm -rf ${repofolder} __MACOSX`);
-    }); 
+    })
     
 });
 }
@@ -129,7 +137,7 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
               console.error(`exec error: ${err}`);
-              exec(`rm ${zipName}`);
+              exec(`rm -rf ${zipName} ${repofolder}`);
               return;
             }
             zipName = stdout.trim();
@@ -159,13 +167,12 @@ function process_git(repofolder, targetUrl, target_token, git_type) {
 
 function cloneRepo(sourceUrl, targetUrl, target_token, git_type) {
     var cmd = `git clone ${sourceUrl}`;
+    var repofolder = getRepositoryName(sourceUrl);
     exec(cmd, (err, stdout, stderr) => {
         if (err) {
             console.error(`exec error: ${err}`);
-            return;
+            exec(`rm -rf ${repofolder}`);
         }
-        var repofolder = getRepositoryName(sourceUrl);
-        console.log(repofolder)
         process_git(repofolder, targetUrl, target_token, git_type);
     });
 }
