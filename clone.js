@@ -2,8 +2,32 @@
 var fs = require('fs');
 var git = require('nodegit');
 const {exec} = require('child_process');
-var express = require('express');
+var express = require('Express');
 var router = express.Router();
+
+var ANYREPOPATTERN = /(http[s]?:\/\/)?([^\/\s]+\/)(.*)/;
+
+function getProjectUrl(gitRepo) {
+    if (gitRepo && gitRepo.toLowerCase().indexOf(".git", gitRepo.length - 4) !== -1) {
+        gitRepo = gitRepo.substring(0, gitRepo.length - 4);
+    }
+    return gitRepo;
+}
+
+function getRepositoryName(gitRepo) {
+    if(gitRepo == null)
+        return null;
+
+    var patternMatch = ANYREPOPATTERN.exec(getProjectUrl(gitRepo));
+    if (patternMatch && patternMatch[3] && patternMatch[3].indexOf('/') != -1) {
+        var pos = patternMatch[3].lastIndexOf('/', patternMatch[3].length - 1);
+        if(pos > 0) {
+            return patternMatch[3].substring(pos + 1);
+        }
+    }
+    return null;
+}
+
 function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     var repo, index, remote, paths = [];
     console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
@@ -91,6 +115,7 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
               console.error(`exec error: ${err}`);
+              exec(`rm ${zipName}`);
               return;
             }
             console.log(`unzipped file ${zipName} to ${repofolder}`);
@@ -104,6 +129,7 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
               console.error(`exec error: ${err}`);
+              exec(`rm ${zipName}`);
               return;
             }
             zipName = stdout.trim();
@@ -117,14 +143,9 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
 }
 
 function process_git(repofolder, targetUrl, target_token, git_type) {
-    function cleanCallback() {
-        exec(`rm -rf __MACOSX ${repofolder}`);
-        console.log("cleaning done")
-    }
     var isBare = 0; // 0 if no .git presence
     var timestamp = Math.round(Date.now()/1000);
-    // TODO: reference "var accountName = gitUtils.getAccountName(params.sourceRepoUrl, git.selected.type)"
-    var accountName = "Yuanchen.Lu@ibm.com";
+    var accountName = "IBM Cloud";
     var signature = git.Signature.create(accountName, accountName, timestamp, 60);
     isBare = fs.existsSync(`${repofolder}/.git`);
     if(!isBare) {
@@ -134,6 +155,19 @@ function process_git(repofolder, targetUrl, target_token, git_type) {
         createRepoFromGit(repofolder, targetUrl, target_token, git_type);
     }
     
+}
+
+function cloneRepo(sourceUrl, targetUrl, target_token, git_type) {
+    var cmd = `git clone ${sourceUrl}`;
+    exec(cmd, (err, stdout, stderr) => {
+        if (err) {
+            console.error(`exec error: ${err}`);
+            return;
+        }
+        var repofolder = getRepositoryName(sourceUrl);
+        console.log(repofolder)
+        process_git(repofolder, targetUrl, target_token, git_type);
+    });
 }
 // var body = {
 //     source: params.repoUrlWithAuth || params.sourceRepoUrl,
@@ -147,27 +181,30 @@ function init(params) {
     var source = params.source;
     var target = params.target;
     var target_token = params.target_token;
-    var sourceUrl = 'https://github-media-downloads.s3.amazonaws.com/GitHub-Logos.zip';
+    var sourceUrl = 'https://github.ibm.com/soaresss/sec-scan.git';
     var targetUrl = `https://github.ibm.com/Yuanchen-Lu/push.git`;
     var cloneType = params.cloneType;
     var git_type = params.git_type;
     git_type = "github"
      console.log(source + '\t' + target)
-    //if(cloneType == 'zip')
-    downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);
+    if(cloneType == 'zip')
+        downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);
+    else 
+        cloneRepo(sourceUrl, targetUrl, target_token, git_type);
 }
 
 router.post("/clone", function(req, res) {
     console.log(req.body);
     res.send("again in the clone route");
     init(req.body);
-});
-
-router.get("/status", function(req, res) {
+  });
+  
+  router.get("/status", function(req, res) {
     res.send({
         "message": "Connected to local helper",
         "status": "PASS",
         "details": "The GitHub helper app is running"
     });
-});
-module.exports = router;
+  });
+  
+  module.exports = router;
