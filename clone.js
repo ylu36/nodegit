@@ -1,6 +1,7 @@
 'use strict';
 var fs = require('fs');
 var git = require('nodegit');
+var path = require('path');
 const {exec} = require('child_process');
 var express = require('Express');
 var router = express.Router();
@@ -73,7 +74,6 @@ function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     })
     .then(function() {
         console.log("Done!");
-        exec(`rm -rf ${repofolder} __MACOSX`);
     }); 
 });
 }
@@ -107,8 +107,8 @@ function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
         return;
       })
     .then(function() {
+        exec(`rm -rf tmp`);
         console.log("Done!");
-        exec(`rm -rf ${repofolder} __MACOSX`);
     })
     
 });
@@ -166,16 +166,29 @@ function process_git(repofolder, targetUrl, target_token, git_type) {
 }
 
 function cloneRepo(sourceUrl, targetUrl, target_token, git_type) {
-    var cmd = `git clone ${sourceUrl}`;
-    var repofolder = getRepositoryName(sourceUrl);
-    exec(cmd, (err, stdout, stderr) => {
-        if (err) {
-            console.error(`exec error: ${err}`);
-            exec(`rm -rf ${repofolder}`);
+    var localPath = path.join(__dirname, "tmp");
+    var cloneOptions = {};
+    cloneOptions.fetchOpts = {
+        callbacks: {
+          certificateCheck:() => { return 1; },
+          credentials:() => {
+               return (git_type.toLowerCase() == 'bitbucket') ?
+                    git.Cred.userpassPlaintextNew("x-token-auth", target_token):
+                    (git_type.toLowerCase() == 'gitlab') ?
+                    git.Cred.userpassPlaintextNew("oauth2", target_token): 
+                   git.Cred.userpassPlaintextNew(target_token, "x-oauth-basic");   
+                }
         }
-        process_git(repofolder, targetUrl, target_token, git_type);
+    };
+    git.Clone(sourceUrl, localPath, cloneOptions)
+    .then(() => {
+        process_git(localPath, targetUrl, target_token, git_type);
+    })
+    .catch((err) => {
+        console.log(err)
     });
 }
+//PARAMETER THAT NEEDS TO PASS IN FROM BROKER:
 // var body = {
 //     source: params.repoUrlWithAuth || params.sourceRepoUrl,
 //     target: targetUrl,
@@ -188,12 +201,11 @@ function init(params) {
     var source = params.source;
     var target = params.target;
     var target_token = params.target_token;
-    var sourceUrl = 'https://github.ibm.com/soaresss/sec-scan.git';
+    var sourceUrl = `https://github.ibm.com/soaresss/sec-scan.git`;
     var targetUrl = `https://github.ibm.com/Yuanchen-Lu/push.git`;
     var cloneType = params.cloneType;
     var git_type = params.git_type;
-    git_type = "github"
-     console.log(source + '\t' + target)
+    
     if(cloneType == 'zip')
         downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);
     else 
