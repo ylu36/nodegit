@@ -10,6 +10,7 @@
     "express": "^4.16.3",
     "fs": "0.0.1-security",
     "http": "0.0.0",
+    "log4js": "^3.0.5",
     "nodegit": "^0.22.1"
   },
   "devDependencies": {},

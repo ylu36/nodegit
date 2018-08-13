@@ -5,33 +5,18 @@ var path = require('path');
 const {exec} = require('child_process');
 var express = require('Express');
 var router = express.Router();
+//Configuration for logging
+var log4js = require('log4js');
+log4js.configure({
+  appenders: { 'file': { type: 'file', filename: 'logs/clone-helper.log' } },
+  categories: { default: { appenders: ['file'], level: 'debug' } }
+});
 
-var ANYREPOPATTERN = /(http[s]?:\/\/)?([^\/\s]+\/)(.*)/;
-
-function getProjectUrl(gitRepo) {
-    if (gitRepo && gitRepo.toLowerCase().indexOf(".git", gitRepo.length - 4) !== -1) {
-        gitRepo = gitRepo.substring(0, gitRepo.length - 4);
-    }
-    return gitRepo;
-}
-
-function getRepositoryName(gitRepo) {
-    if(gitRepo == null)
-        return null;
-
-    var patternMatch = ANYREPOPATTERN.exec(getProjectUrl(gitRepo));
-    if (patternMatch && patternMatch[3] && patternMatch[3].indexOf('/') != -1) {
-        var pos = patternMatch[3].lastIndexOf('/', patternMatch[3].length - 1);
-        if(pos > 0) {
-            return patternMatch[3].substring(pos + 1);
-        }
-    }
-    return null;
-}
+var logger = log4js.getLogger('clone-helper');
 
 function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     var repo, index, remote, paths = [];
-    console.log(`${repofolder} is not a git repository. Initializing a bare repo...`);
+    logger.info(`${repofolder} is not a git repository. Initializing a bare repo...`);
     var list = fs.readdirSync(repofolder);
     list.forEach(function(file) {
         if(file != '.git') {
@@ -45,18 +30,13 @@ function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
     .then(() => index.addAll(paths))
     .then(() => index.write())
     .then(() => index.writeTree())
-    .then(function(oid) {
-        return repo.createCommit("HEAD", signature, signature, "initial commit", oid, []);
-    })
-    .then(function(commitId) {
-    console.log("New Commit: ", commitId);
-    })
+    .then((oid) => repo.createCommit("HEAD", signature, signature, "initial commit", oid, []))
+    .then((commitId) => logger.info("New Commit: ", commitId))
     // Add a new remote
-    .then(function() {
-        return git.Remote.create(repo, "origin", targetUrl)
-        .then(function(remoteResult) {
+    .then(() => git.Remote.create(repo, "origin", targetUrl))
+    .then(function(remoteResult) {
         remote = remoteResult;
-        console.log(`remote set to ${targetUrl}`);
+        logger.info(`remote set to ${targetUrl}`);
         return remote.push(
             ["refs/heads/master:refs/heads/master"],
             {
@@ -69,25 +49,22 @@ function createRepo(repofolder, signature, targetUrl, target_token, git_type) {
         });
     })
     .catch(function(err) {
-        console.log(err);
+        logger.error(err);
         return;
     })
-    .then(function() {
-        console.log("Done!");
-    }); 
-});
+    .done(() => logger.info("Done!"))
 }
 
 function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
     var repo, remote;
-    console.log(`${repofolder} is a git repository. Staging the repo...`);
+    logger.info(`${repofolder} is a git repository. Staging the repo...`);
     
     git.Repository.open(repofolder)
     .then((repoResult) => repo = repoResult)
     // Add a new remote
     .then(function() {
         git.Remote.setUrl(repo, "origin", targetUrl);
-        console.log(`remote set to ${targetUrl}`);
+        logger.info(`remote set to ${targetUrl}`);
         return git.Remote.lookup(repo, "origin")
         .then(function(remoteResult) {
         remote = remoteResult;
@@ -103,14 +80,13 @@ function createRepoFromGit(repofolder, targetUrl, target_token, git_type) {
         });
     })
     .catch(function(err) {
-        console.log(err);
+        logger.err(err);
         return;
       })
     .then(function() {
         exec(`rm -rf tmp`);
-        console.log("Done!");
+        logger.info("Done!");
     })
-    
 });
 }
 
@@ -119,14 +95,14 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
 
     function unzip(zipName) {
         var cmd = `unzip ${zipName} -d ./`;
-        console.log(cmd);
+        logger.info(cmd);
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
-              console.error(`exec error: ${err}`);
+              logger.error(`exec error: ${err}`);
               exec(`rm ${zipName}`);
               return;
             }
-            console.log(`unzipped file ${zipName} to ${repofolder}`);
+            logger.info(`unzipped file ${zipName} to ${repofolder}`);
             process_git(repofolder, targetUrl, target_token, git_type);
             }
         );
@@ -136,13 +112,13 @@ function downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type) {
         var cmd = `wget ${sourceUrl} && find . -iname \*.zip`;
         exec(cmd, (err, stdout, stderr) => {
             if (err) {
-              console.error(`exec error: ${err}`);
+              logger.error(`exec error: ${err}`);
               exec(`rm -rf ${zipName} ${repofolder}`);
               return;
             }
             zipName = stdout.trim();
             repofolder = zipName.replace(/\.[^/.]+$/, "");
-            console.log(`downloaded zip file: ${zipName} to ${repofolder}`);
+            logger.info(`downloaded zip file: ${zipName} to ${repofolder}`);
             // readDir('.');
             unzip(zipName);
         });
@@ -180,12 +156,13 @@ function cloneRepo(sourceUrl, targetUrl, target_token, git_type) {
                 }
         }
     };
+   
     git.Clone(sourceUrl, localPath, cloneOptions)
     .then(() => {
         process_git(localPath, targetUrl, target_token, git_type);
     })
     .catch((err) => {
-        console.log(err)
+        logger.info(err);
     });
 }
 //PARAMETER THAT NEEDS TO PASS IN FROM BROKER:
@@ -202,10 +179,9 @@ function init(params) {
     var target = params.target;
     var target_token = params.target_token;
     var sourceUrl = `https://github.ibm.com/soaresss/sec-scan.git`;
-    var targetUrl = `https://github.ibm.com/Yuanchen-Lu/push.git`;
+    var targetUrl = `https://github.ibm.com/Yuanchen-Lu/push1.git`;
     var cloneType = params.cloneType;
     var git_type = params.git_type;
-    
     if(cloneType == 'zip')
         downloadAndUnzipFile(sourceUrl, targetUrl, target_token, git_type);
     else 
@@ -213,8 +189,7 @@ function init(params) {
 }
 
 router.post("/clone", function(req, res) {
-    console.log(req.body);
-    res.send("again in the clone route");
+    res.send("In the clone helper route...");
     init(req.body);
   });
   
